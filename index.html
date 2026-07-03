@@ -99,6 +99,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--hover)
 .modal-toolbar input,.modal-toolbar select{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);outline:none;font-family:'Inter',sans-serif}
 .modal-toolbar input{flex:1;min-width:160px}
 .modal-body{overflow:auto;flex:1}
+.modal-stat{padding:10px 22px;border-bottom:1px solid var(--border);background:var(--surface2);font-size:12px;font-weight:700;color:var(--primary-dark)}
 @media print{.sidebar,.btn,.toolbar-local,.filter-ico,.modal-overlay{display:none!important}.main{margin-left:0;padding:0}.section{display:block!important}.card,.col-card,.chart-box{break-inside:avoid}}
 @media(max-width:900px){
   .sidebar{transform:translateX(-100%);position:fixed;width:80%;max-width:280px;box-shadow:var(--shadow-lg)}
@@ -159,7 +160,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--hover)
   <div style='overflow-x:auto;max-height:300px;overflow-y:auto'><table><thead><tr>
   <th>Month</th><th>Trips</th><th>Load (MT)</th><th>Pending</th><th>Submitted</th><th>Submitted %</th>
   </tr></thead><tbody id='monthBody'></tbody></table></div></div>
-  <div class='sec-title'>&#128203; Party-wise Challan Tracker<span class='tag'>Last 3 months &mdash; click a row for trip details</span></div>
+  <div class='sec-title'>&#128203; Party-wise Challan Tracker<span class='tag'>Last 3 months &mdash; click a row for pending trip details of that month</span></div>
   <div class='collapsible-grid' id='challanGrid'></div>
   <div class='card' id='filteredCard' style='display:none'>
     <div class='card-head'><div><h2>&#128270; Search Results</h2><p id='filteredCount'></p></div>
@@ -209,7 +210,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--hover)
 </main>
 <div class='modal-overlay' id='tripModal' onclick='if(event.target===this)closeTripModal()'>
   <div class='modal-box'>
-    <div class='modal-head'><div><h3 id='tripModalTitle'>Trip Details</h3><p id='tripModalSub'></p></div>
+    <div class='modal-head'><div><h3 id='tripModalTitle'>Pending Trips</h3><p id='tripModalSub'></p></div>
     <button class='modal-close' onclick='closeTripModal()'>&times;</button></div>
     <div class='modal-toolbar'>
       <input type='text' id='tripModalSearch' placeholder='Search challan, destination...' oninput='renderTripModal()'>
@@ -347,7 +348,7 @@ document.getElementById('challanGrid').innerHTML=months.map(function(m,mi){
     '<tr><td colspan="5" class="no-result">No data for this month</td></tr>':
     rows.map(function(r){
       var pendCell=r.pend>0?'<span class="badge badge-pend">&#9888; '+r.pend+'</span>':'<span style="color:var(--text-dim)">-</span>';
-      return '<tr onclick="openTripModal(&apos;'+esc(r.party).replace(/'/g,'&#39;')+'&apos;,&apos;'+esc(r.truck).replace(/'/g,'&#39;')+'&apos;)">'+
+      return '<tr onclick="openTripModal(&apos;'+esc(r.party).replace(/'/g,'&#39;')+'&apos;,&apos;'+esc(r.truck).replace(/'/g,'&#39;')+'&apos;,'+mi+')">'+
         '<td><b>'+esc(r.party)+'</b></td>'+
         '<td class="mono">'+esc(r.truck)+'</td>'+
         '<td>'+pendCell+'</td>'+
@@ -365,14 +366,24 @@ document.getElementById('challanGrid').innerHTML=months.map(function(m,mi){
     '<thead><tr><th>Party</th><th>Truck No.</th><th>Pending</th><th>Submitted</th><th>Total</th></tr></thead>'+
     '<tbody>'+rH+'</tbody></table></div></div>';
 }).join('');
-var tripModalData={party:'',truck:'',rows:[]};
-function openTripModal(party,truck){
+var tripModalData={party:'',truck:'',monthLabel:'',rows:[]};
+function openTripModal(party,truck,monthIdx){
   var p=party.replace(/&#39;/g,"'");
   var t=truck.replace(/&#39;/g,"'");
-  var rows=RAW.filter(function(r){return r.party.trim()===p.trim()&&r.truck.trim()===t.trim();});
-  tripModalData={party:p,truck:t,rows:rows};
-  document.getElementById('tripModalTitle').textContent=p+' \u2014 '+t;
-  document.getElementById('tripModalSub').textContent=rows.length+' trip(s) found for this Party/Truck';
+  var mCard=months[monthIdx];
+  var targetMonth=mCard.date.getMonth();
+  var targetYear=mCard.date.getFullYear();
+  var rows=RAW.filter(function(r){
+    if(r.party.trim()!==p.trim()||r.truck.trim()!==t.trim())return false;
+    var d=new Date(r.pgiDate);if(isNaN(d))return false;
+    if(d.getMonth()!==targetMonth||d.getFullYear()!==targetYear)return false;
+    var pend=!r.challan||r.challan.trim()==='';
+    return pend;
+  });
+  tripModalData={party:p,truck:t,monthLabel:mCard.label,rows:rows};
+  document.getElementById('tripModalTitle').textContent='Pending Trips - '+mCard.label;
+  document.getElementById('tripModalSub').innerHTML=
+    'Party: <b>'+esc(p)+'</b> &nbsp;|&nbsp; Truck: <b>'+esc(t)+'</b> &nbsp;|&nbsp; Total Pending Trips: <b>'+rows.length+'</b>';
   document.getElementById('tripModalSearch').value='';
   document.getElementById('tripModalSort').value='desc';
   renderTripModal();
@@ -391,17 +402,14 @@ function renderTripModal(){
     return sortDir==='asc'?da-db:db-da;
   });
   document.getElementById('tripModalBody').innerHTML=rows.length===0?
-    '<tr><td colspan="5" class="no-result">No trips match this filter</td></tr>':
+    '<tr><td colspan="5" class="no-result">No pending trips match this filter</td></tr>':
     rows.map(function(r){
-      var pend=!r.challan||r.challan.trim()==='';
-      var badgeCls=pend?'badge-pend':'badge-ok';
-      var statusTxt=pend?'Pending':'Submitted';
       return '<tr>'+
         '<td>'+new Date(r.pgiDate).toLocaleDateString('en-IN')+'</td>'+
         '<td class="mono">'+esc(r.challan||'&mdash;')+'</td>'+
         '<td>'+esc(r.dest||'&mdash;')+'</td>'+
         '<td class="mono">'+fmt(Number(r.loadQty)||0)+'</td>'+
-        '<td><span class="badge '+badgeCls+'">'+statusTxt+'</span></td>'+
+        '<td><span class="badge badge-pend">Pending</span></td>'+
         '</tr>';
     }).join('');
 }
