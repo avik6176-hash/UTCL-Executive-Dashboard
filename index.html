@@ -153,7 +153,7 @@ button:focus-visible,.btn:focus-visible,.nav-item:focus-visible,input:focus-visi
 </style></head><body>
 <button class='menu-btn' onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
 <aside class='sidebar'>
-  <div class='logo'><div class='logo-icon'>&#128202;</div><div><div class='logo-text'>Ops Control</div><div class='logo-sub'>Executive Suite</div></div></div>
+  <div class='logo'><div class='logo-icon'>&#128202;</div><div><div class='logo-text'>BMR Ops Control</div><div class='logo-sub'>Executive Suite</div></div></div>
   <div class='nav-item active' data-sec='sec-trips' onclick="showSection('sec-trips',this)"><span class='icon'>&#128666;</span> Trips &amp; Challan</div>
   <div class='nav-item' data-sec='sec-pay' onclick="showSection('sec-pay',this)"><span class='icon'>&#128181;</span> Payment Advice</div>
   <div class='nav-item' data-sec='sec-cash' onclick="showSection('sec-cash',this)"><span class='icon'>&#128176;</span> Cash Book</div>
@@ -263,7 +263,7 @@ var now=new Date();
 var hr=now.getHours();
 var g='Good Evening';
 if(hr<12)g='Good Morning';else if(hr<18)g='Good Afternoon';
-document.getElementById('greetingText').textContent=g+', Team';
+document.getElementById('greetingText').textContent=g+', BMR Transport Team';
 document.getElementById('ts').textContent=now.toLocaleString('en-IN',{dateStyle:'long',timeStyle:'short'});
 Chart.defaults.color='#6B7280';
 Chart.defaults.borderColor='rgba(229,231,235,0.8)';
